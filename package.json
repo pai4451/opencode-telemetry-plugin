@@ -1,0 +1,31 @@
+{
+  "name": "opencode-telemetry-plugin",
+  "version": "1.0.0",
+  "description": "OpenTelemetry metrics collection plugin for OpenCode",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["opencode", "opentelemetry", "telemetry", "metrics"],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.1.0"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-metrics": "^1.29.0",
+    "@opentelemetry/exporter-metrics-otlp-grpc": "^0.54.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.54.0",
+    "@opentelemetry/resources": "^1.29.0",
+    "@opentelemetry/semantic-conventions": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
