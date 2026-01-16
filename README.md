@@ -71,16 +71,29 @@ Tool: bash, Status: success, Count: 5
 - `max` - Slowest execution
 - Histogram buckets for distribution analysis
 
-### 4. Permission Requests (Future)
+### 4. Permission Requests
 
 **Metric:**
 - `opencode.permission.requests` - Permission ask/accept/reject stats
 
 **Attributes:**
-- `permission` - Type of permission requested
-- `reply` - User response (accept, reject, always)
+- `permission.name` - Type of permission requested (e.g., "edit", "bash")
+- `permission.reply` - User response (accept, reject, auto_accept)
 - `tool.name` - Tool requesting permission
 - `session.id` - Session identifier
+- `language` - Programming language context (when available)
+
+**Reply Types:**
+- `accept` - User approved this specific action (reply: "once")
+- `auto_accept` - User approved all similar actions (reply: "always")
+- `reject` - User denied the action
+
+**Example Log Output:**
+```
+PERMISSION ASKED: permission=edit, requestID=perm_abc123, hasToolCallID=true
+PERMISSION REPLIED: permission=edit, reply=once, requestID=perm_abc123, callID=call_xyz789
+PERMISSION RECORDED: edit -> accept (tool=edit, session=sess_abc12345...)
+```
 
 ## Installation
 

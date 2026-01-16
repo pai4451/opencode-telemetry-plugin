@@ -114,31 +114,77 @@ const plugin: Plugin = async (input) => {
     event: async (input) => {
       const event = input.event as any
 
+      // Only log permission-related events (avoid spam from other events)
+      if (event.type?.startsWith("permission.")) {
+        Logger.debug(`Event received: ${event.type}`)
+      }
+
       if (event.type === "permission.asked") {
         const props = event.properties
-        if (props?.tool?.callID) {
-          Correlation.registerPermissionAsked(props.id, props.tool.callID)
-        }
+        // Detailed logging similar to LOC logging
+        Logger.log(`PERMISSION ASKED: permission=${props?.permission}, requestID=${props?.id}, hasToolCallID=${!!props?.tool?.callID}`)
+        Logger.debug("permission.asked full props", JSON.stringify(props, null, 2))
+
+        // Store full permission info for later retrieval in permission.replied
+        // The permission.replied event may NOT have permission/tool fields, so we store them here
+        Correlation.registerPermissionAsked(
+          props.id,
+          props.permission,
+          props.sessionID,
+          props.tool?.callID,
+        )
+        Logger.debug(`Permission request stored: requestID=${props.id}, permission=${props.permission}, callID=${props.tool?.callID}`)
       }
 
       if (event.type === "permission.replied") {
         const props = event.properties
-        const callID = Correlation.getCallIDForRequest(props?.requestID)
-        if (!callID) return
 
-        const decision = props.reply === "reject" ? "reject" : props.reply === "always" ? "auto_accept" : "accept"
-        const ctx = Correlation.getContextForCall(callID)
-        if (!ctx) return
+        // Detailed logging similar to LOC logging (Logger.log for important events)
+        Logger.log(`PERMISSION REPLIED: reply=${props?.reply}, requestID=${props?.requestID}`)
+        Logger.debug("permission.replied full props", JSON.stringify(props, null, 2))
 
+        // Get the stored permission info from permission.asked event
+        // The permission.replied event may NOT have permission/tool fields!
+        const permissionInfo = Correlation.getPermissionRequest(props?.requestID)
+
+        if (!permissionInfo) {
+          Logger.error(`No permission request found for requestID=${props?.requestID} - cannot record metric`)
+          return
+        }
+
+        Logger.debug(`Found permission info: permission=${permissionInfo.permission}, callID=${permissionInfo.callID}`)
+
+        // Map reply to decision
+        const decision = props.reply === "reject" ? "reject"
+                       : props.reply === "always" ? "auto_accept"
+                       : "accept"
+
+        // Try to get tool name and language from tool execution context
+        let toolName = "unknown"
+        let language = "unknown"
+        if (permissionInfo.callID) {
+          const ctx = Correlation.getContextForCall(permissionInfo.callID)
+          if (ctx) {
+            toolName = ctx.tool
+            language = ctx.language || "unknown"
+            Logger.debug(`Context found for callID=${permissionInfo.callID}: tool=${toolName}, language=${language}`)
+          } else {
+            Logger.debug(`No context found for callID=${permissionInfo.callID}`)
+          }
+          Correlation.registerPermissionReplied(props.requestID, decision)
+        }
+
+        // Record metric with the permission info we stored from permission.asked
         Metrics.recordPermissionRequest({
-          permission: props.permission || "unknown",
+          permission: permissionInfo.permission,
           reply: decision,
-          sessionID: props.sessionID,
-          tool: ctx.tool,
-          language: ctx.language,
+          sessionID: permissionInfo.sessionID,
+          tool: toolName,
+          language,
         })
 
-        Correlation.registerPermissionReplied(props.requestID, decision)
+        // Clear summary log line (similar to LOC: "LOC recorded: +X -Y")
+        Logger.log(`PERMISSION RECORDED: ${permissionInfo.permission} -> ${decision} (tool=${toolName}, session=${permissionInfo.sessionID?.slice(0,12)}...)`)
       }
     },
   }
