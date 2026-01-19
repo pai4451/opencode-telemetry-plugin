@@ -1,9 +1,19 @@
 import type { Plugin } from "@opencode-ai/plugin"
+import * as os from "os"
 import * as Metrics from "./metrics.js"
 import * as Correlation from "./correlation.js"
 import { inferLanguage } from "./language-map.js"
 import type { MetricsConfig } from "./types.js"
 import * as Logger from "./logger.js"
+
+/**
+ * Global config state populated from config hook for use in all metrics
+ */
+const globalConfig = {
+  model: "unknown",
+  user: os.userInfo().username,
+  version: "1.0.0",
+}
 
 /**
  * OpenCode OpenTelemetry Plugin
@@ -26,13 +36,20 @@ const plugin: Plugin = async (input) => {
       Logger.log("Config hook called")
       Logger.debug("Config object keys", Object.keys(config || {}))
 
+      // Populate global config from OpenCode config
+      const configAny = config as any
+      if (configAny.model) {
+        globalConfig.model = configAny.model
+        Logger.debug("Model set from config", globalConfig.model)
+      }
+
       // Log entire experimental object for debugging
-      if ((config as any).experimental) {
-        Logger.debug("experimental object", JSON.stringify((config as any).experimental, null, 2))
+      if (configAny.experimental) {
+        Logger.debug("experimental object", JSON.stringify(configAny.experimental, null, 2))
       }
 
       // Use OpenCode's built-in openTelemetry flag
-      const openTelemetryEnabled = (config as any).experimental?.openTelemetry
+      const openTelemetryEnabled = configAny.experimental?.openTelemetry
       Logger.debug("openTelemetry enabled", openTelemetryEnabled)
 
       if (!openTelemetryEnabled) {
@@ -50,6 +67,7 @@ const plugin: Plugin = async (input) => {
       }
 
       Logger.log("Initializing metrics with openTelemetry enabled")
+      Logger.log(`Global config: model=${globalConfig.model}, user=${globalConfig.user}, version=${globalConfig.version}`)
       await Metrics.initialize(metricsConfig)
     },
 
@@ -104,8 +122,33 @@ const plugin: Plugin = async (input) => {
           sessionID: input.sessionID,
           language,
           file: filediff.file,
+          // New attributes for final JSON conversion
+          model: globalConfig.model,
+          user: globalConfig.user,
+          version: globalConfig.version,
+          callID: input.callID,
         })
-        Logger.log(`LOC recorded: +${filediff.additions || 0} -${filediff.deletions || 0} (tool=${input.tool}, language=${language})`)
+        Logger.log(`LOC recorded: +${filediff.additions || 0} -${filediff.deletions || 0} (tool=${input.tool}, language=${language}, callID=${input.callID})`)
+
+        // Check if this edit was auto-approved (no permission event was triggered)
+        // If permission was NOT asked, record an implicit "accept" with autoApproveEdit=true
+        const permissionWasAsked = Correlation.wasPermissionAskedForCall(input.callID)
+        if (!permissionWasAsked) {
+          Metrics.recordPermissionRequest({
+            permission: "edit",
+            reply: "accept",  // Auto-approved = implicit accept
+            sessionID: input.sessionID,
+            tool: input.tool,
+            language,
+            model: globalConfig.model,
+            user: globalConfig.user,
+            version: globalConfig.version,
+            callID: input.callID,
+            filepath: filediff.file,
+            autoApproveEdit: true,  // Permission was NOT asked, so auto_approve_edit = true
+          })
+          Logger.log(`AUTO-APPROVED EDIT recorded: accept (tool=${input.tool}, language=${language}, callID=${input.callID}, filepath=${filediff.file})`)
+        }
       }
 
       Correlation.registerToolEnd(input.callID, { filediff, files, language })
@@ -125,6 +168,14 @@ const plugin: Plugin = async (input) => {
         Logger.log(`PERMISSION ASKED: permission=${props?.permission}, requestID=${props?.id}, hasToolCallID=${!!props?.tool?.callID}`)
         Logger.debug("permission.asked full props", JSON.stringify(props, null, 2))
 
+        // Extract filepath from metadata if available
+        // The actual field name is "filepath" (no underscore), not "file_path"
+        const filepath = props?.metadata?.filepath
+          || props?.tool?.metadata?.filepath
+          || props?.metadata?.file_path
+          || props?.tool?.input?.file_path
+          || undefined
+
         // Store full permission info for later retrieval in permission.replied
         // The permission.replied event may NOT have permission/tool fields, so we store them here
         Correlation.registerPermissionAsked(
@@ -132,8 +183,9 @@ const plugin: Plugin = async (input) => {
           props.permission,
           props.sessionID,
           props.tool?.callID,
+          filepath,
         )
-        Logger.debug(`Permission request stored: requestID=${props.id}, permission=${props.permission}, callID=${props.tool?.callID}`)
+        Logger.debug(`Permission request stored: requestID=${props.id}, permission=${props.permission}, callID=${props.tool?.callID}, filepath=${filepath}`)
       }
 
       if (event.type === "permission.replied") {
@@ -159,15 +211,20 @@ const plugin: Plugin = async (input) => {
                        : props.reply === "always" ? "auto_accept"
                        : "accept"
 
-        // Try to get tool name and language from tool execution context
+        // Try to get tool name, language, and filepath from tool execution context
         let toolName = "unknown"
         let language = "unknown"
+        let filepath = permissionInfo.filepath  // Start with filepath from permission.asked
         if (permissionInfo.callID) {
           const ctx = Correlation.getContextForCall(permissionInfo.callID)
           if (ctx) {
             toolName = ctx.tool
             language = ctx.language || "unknown"
-            Logger.debug(`Context found for callID=${permissionInfo.callID}: tool=${toolName}, language=${language}`)
+            // If we have filediff from context, use that filepath
+            if (ctx.filediff?.file && !filepath) {
+              filepath = ctx.filediff.file
+            }
+            Logger.debug(`Context found for callID=${permissionInfo.callID}: tool=${toolName}, language=${language}, filepath=${filepath}`)
           } else {
             Logger.debug(`No context found for callID=${permissionInfo.callID}`)
           }
@@ -175,16 +232,25 @@ const plugin: Plugin = async (input) => {
         }
 
         // Record metric with the permission info we stored from permission.asked
+        // autoApproveEdit is FALSE because permission WAS asked (user manually approved)
+        // autoApproveEdit is TRUE when permission was NOT asked (auto-approved)
         Metrics.recordPermissionRequest({
           permission: permissionInfo.permission,
           reply: decision,
           sessionID: permissionInfo.sessionID,
           tool: toolName,
           language,
+          // New attributes for final JSON conversion
+          model: globalConfig.model,
+          user: globalConfig.user,
+          version: globalConfig.version,
+          callID: permissionInfo.callID,
+          filepath,
+          autoApproveEdit: false,  // Permission was asked, so auto_approve_edit = false (manual approval)
         })
 
         // Clear summary log line (similar to LOC: "LOC recorded: +X -Y")
-        Logger.log(`PERMISSION RECORDED: ${permissionInfo.permission} -> ${decision} (tool=${toolName}, session=${permissionInfo.sessionID?.slice(0,12)}...)`)
+        Logger.log(`PERMISSION RECORDED: ${permissionInfo.permission} -> ${decision} (tool=${toolName}, session=${permissionInfo.sessionID?.slice(0,12)}..., filepath=${filepath})`)
       }
     },
   }
