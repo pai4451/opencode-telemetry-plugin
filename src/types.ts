@@ -44,6 +44,11 @@ export interface RecordLOCInput {
   sessionID: string
   language?: string
   file?: string
+  // New fields for final JSON conversion
+  model?: string
+  user?: string
+  version?: string
+  callID?: string
 }
 
 /**
@@ -67,4 +72,11 @@ export interface RecordPermissionInput {
   sessionID: string
   tool?: string
   language?: string
+  // New fields for final JSON conversion
+  model?: string
+  user?: string
+  version?: string
+  callID?: string
+  filepath?: string
+  autoApproveEdit?: boolean
 }

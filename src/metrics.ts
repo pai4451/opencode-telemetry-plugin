@@ -134,6 +134,23 @@ export function recordLinesOfCode(input: RecordLOCInput): void {
     attributes["file.path"] = input.file
   }
 
+  // New attributes for final JSON conversion
+  if (input.model) {
+    attributes["model"] = input.model
+  }
+
+  if (input.user) {
+    attributes["user"] = input.user
+  }
+
+  if (input.version) {
+    attributes["version"] = input.version
+  }
+
+  if (input.callID) {
+    attributes["call.id"] = input.callID
+  }
+
   if (input.additions > 0) {
     locAddedCounter.add(input.additions, attributes)
   }
@@ -188,6 +205,31 @@ export function recordPermissionRequest(input: RecordPermissionInput): void {
 
   if (input.language) {
     attributes["language"] = input.language
+  }
+
+  // New attributes for final JSON conversion
+  if (input.model) {
+    attributes["model"] = input.model
+  }
+
+  if (input.user) {
+    attributes["user"] = input.user
+  }
+
+  if (input.version) {
+    attributes["version"] = input.version
+  }
+
+  if (input.callID) {
+    attributes["call.id"] = input.callID
+  }
+
+  if (input.filepath) {
+    attributes["file.path"] = input.filepath
+  }
+
+  if (input.autoApproveEdit !== undefined) {
+    attributes["auto_approve_edit"] = String(input.autoApproveEdit)
   }
 
   permissionRequestCounter.add(1, attributes)

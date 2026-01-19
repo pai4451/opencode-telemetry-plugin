@@ -9,6 +9,7 @@ interface PermissionRequestInfo {
   callID?: string
   sessionID: string
   timestamp: number
+  filepath?: string  // For correlation with LOC metrics
 }
 
 /**
@@ -69,6 +70,7 @@ export function registerPermissionAsked(
   permission: string,
   sessionID: string,
   callID?: string,
+  filepath?: string,
 ): void {
   // Store full permission request info
   permissionRequests.set(requestID, {
@@ -77,6 +79,7 @@ export function registerPermissionAsked(
     callID,
     sessionID,
     timestamp: Date.now(),
+    filepath,
   })
 
   // Also maintain the callID mappings if available
@@ -121,6 +124,14 @@ export function getContextForCall(callID: string): CallContext | undefined {
  */
 export function getCallIDForRequest(requestID: string): string | undefined {
   return requestToCall.get(requestID)
+}
+
+/**
+ * Check if permission was asked for a given callID
+ * Returns true if a permission.asked event was received for this callID
+ */
+export function wasPermissionAskedForCall(callID: string): boolean {
+  return callToRequest.has(callID)
 }
 
 /**
