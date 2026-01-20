@@ -28,7 +28,7 @@ export interface CallContext {
   tool: string
   sessionID: string
   startTime: number
-  decision?: "accept" | "reject" | "auto_accept"
+  decision?: "once" | "always" | "auto" | "reject"
   filediff?: FileDiff
   files?: string[]
   language?: string
@@ -68,7 +68,7 @@ export interface RecordToolExecutionInput {
  */
 export interface RecordPermissionInput {
   permission: string
-  reply: "accept" | "reject" | "auto_accept"
+  reply: "once" | "always" | "auto" | "reject"
   sessionID: string
   tool?: string
   language?: string

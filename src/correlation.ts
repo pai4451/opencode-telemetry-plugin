@@ -101,7 +101,7 @@ export function getPermissionRequest(requestID: string): PermissionRequestInfo |
  */
 export function registerPermissionReplied(
   requestID: string,
-  decision: "accept" | "reject" | "auto_accept",
+  decision: "once" | "always" | "auto" | "reject",
 ): void {
   const callID = requestToCall.get(requestID)
   if (!callID) return
