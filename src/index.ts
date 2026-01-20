@@ -136,7 +136,7 @@ const plugin: Plugin = async (input) => {
         if (!permissionWasAsked) {
           Metrics.recordPermissionRequest({
             permission: "edit",
-            reply: "accept",  // Auto-approved = implicit accept
+            reply: "auto",  // Auto-approved = no dialog shown, system auto-approved
             sessionID: input.sessionID,
             tool: input.tool,
             language,
@@ -147,7 +147,7 @@ const plugin: Plugin = async (input) => {
             filepath: filediff.file,
             autoApproveEdit: true,  // Permission was NOT asked, so auto_approve_edit = true
           })
-          Logger.log(`AUTO-APPROVED EDIT recorded: accept (tool=${input.tool}, language=${language}, callID=${input.callID}, filepath=${filediff.file})`)
+          Logger.log(`AUTO-APPROVED EDIT recorded: auto (tool=${input.tool}, language=${language}, callID=${input.callID}, filepath=${filediff.file})`)
         }
       }
 
@@ -206,10 +206,9 @@ const plugin: Plugin = async (input) => {
 
         Logger.debug(`Found permission info: permission=${permissionInfo.permission}, callID=${permissionInfo.callID}`)
 
-        // Map reply to decision
-        const decision = props.reply === "reject" ? "reject"
-                       : props.reply === "always" ? "auto_accept"
-                       : "accept"
+        // Use the original reply value from OpenCode: "once", "always", or "reject"
+        // This is clearer than mapping to different names
+        const decision = props.reply  // "once", "always", or "reject"
 
         // Try to get tool name, language, and filepath from tool execution context
         let toolName = "unknown"
