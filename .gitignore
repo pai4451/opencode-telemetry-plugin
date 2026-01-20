@@ -1,4 +1,46 @@
-node_modules/
+# Build artifacts
 dist/
+*.js
+*.d.ts
+*.js.map
+
+# Except for specific config files that should be tracked
+!jest.config.js
+!*.config.js
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.tgz
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Test files (local development only)
+merge_sort.cpp
+test-*.js
+test-*.ts

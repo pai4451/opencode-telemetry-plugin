@@ -2,6 +2,24 @@
 
 A zero-configuration OpenTelemetry plugin for OpenCode that collects detailed metrics about AI-assisted code editing sessions.
 
+## Quick Start
+
+```bash
+# Build the plugin
+make build
+
+# Install locally (current project)
+make install
+
+# Or install globally (all projects)
+make install-global
+
+# Create distributable package
+make pack
+```
+
+For enterprise/internal distribution, see **[DISTRIBUTION.md](DISTRIBUTION.md)**.
+
 ## Features
 
 - 📊 **Lines of Code (LOC) Tracking** - Track additions and deletions per edit
@@ -97,22 +115,39 @@ PERMISSION RECORDED: edit -> accept (tool=edit, session=sess_abc12345...)
 
 ## Installation
 
-### 1. Build the Plugin
+### Option 1: Using Makefile (Recommended)
 
 ```bash
-cd /home/mtk26468/opencode-telemetry-plugin
+# Build the plugin
+make build
+
+# Install to current project
+make install
+
+# Or install globally for all projects
+make install-global
+```
+
+### Option 2: Manual Installation
+
+**Build:**
+```bash
 npm install
 npm run build
 ```
 
-### 2. Link to OpenCode
-
-Create a symlink in your OpenCode project:
-
+**Install to project:**
 ```bash
 cd /path/to/your/opencode/project
 mkdir -p .opencode/plugin
-ln -s /home/mtk26468/opencode-telemetry-plugin .opencode/plugin/opencode-telemetry
+ln -s /path/to/opencode-telemetry-plugin .opencode/plugin/opencode-telemetry
+```
+
+**Or install globally:**
+```bash
+mkdir -p ~/.config/opencode/plugins/opencode-telemetry
+cp -r dist/* ~/.config/opencode/plugins/opencode-telemetry/
+cp package.json ~/.config/opencode/plugins/opencode-telemetry/
 ```
 
 ### 3. Configure OpenCode
