@@ -5,13 +5,36 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "analyze_metrics.py",
+    "README.md",
+    "DISTRIBUTION.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build",
+    "prepack": "npm run build"
   },
-  "keywords": ["opencode", "opentelemetry", "telemetry", "metrics"],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://your-gitea-server.com/your-org/opencode-telemetry-plugin.git"
+  },
+  "publishConfig": {
+    "registry": "https://your-gitea-server.com/api/packages/your-org/npm/"
+  },
+  "keywords": [
+    "opencode",
+    "opentelemetry",
+    "telemetry",
+    "metrics",
+    "ai-coding",
+    "developer-tools"
+  ],
+  "author": "Your Company Name",
   "license": "MIT",
   "peerDependencies": {
     "@opencode-ai/plugin": "^1.1.0"

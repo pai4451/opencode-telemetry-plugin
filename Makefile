@@ -1,7 +1,7 @@
 # Makefile for OpenCode Telemetry Plugin
 # ========================================
 
-.PHONY: all build clean install install-global test help pack
+.PHONY: all build clean install install-global test help pack publish publish-dry-run setup-registry version-patch version-minor version-major
 
 # Default target
 all: build
@@ -50,6 +50,59 @@ pack: build
 	@echo "To install from tarball:"
 	@echo "  npm install ./opencode-telemetry-plugin-1.0.0.tgz"
 
+# Setup Gitea npm registry (interactive)
+setup-registry:
+	@echo "Setting up Gitea npm registry..."
+	@./setup-registry.sh
+
+# Publish to npm registry (dry-run)
+publish-dry-run: build
+	@echo "Running publish dry-run (no actual publish)..."
+	npm publish --dry-run
+	@echo ""
+	@echo "✓ Dry-run complete. Review the output above."
+	@echo "  If everything looks good, run: make publish"
+
+# Publish to npm registry
+publish: build
+	@echo "Publishing to npm registry..."
+	@echo ""
+	@echo "⚠️  This will publish the package to the configured registry."
+	@echo "   Current version: $$(node -p "require('./package.json').version")"
+	@echo "   Registry: $$(npm config get registry)"
+	@echo ""
+	@read -p "Continue? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		npm publish; \
+		echo ""; \
+		echo "✓ Package published successfully!"; \
+		echo ""; \
+		echo "Users can install with:"; \
+		echo "  npm install opencode-telemetry-plugin"; \
+	else \
+		echo "Publish cancelled."; \
+		exit 1; \
+	fi
+
+# Bump patch version (1.0.0 -> 1.0.1)
+version-patch:
+	@echo "Bumping patch version..."
+	npm version patch
+	@echo "✓ Version bumped to $$(node -p "require('./package.json').version")"
+
+# Bump minor version (1.0.0 -> 1.1.0)
+version-minor:
+	@echo "Bumping minor version..."
+	npm version minor
+	@echo "✓ Version bumped to $$(node -p "require('./package.json').version")"
+
+# Bump major version (1.0.0 -> 2.0.0)
+version-major:
+	@echo "Bumping major version..."
+	npm version major
+	@echo "✓ Version bumped to $$(node -p "require('./package.json').version")"
+
 # Uninstall from current project
 uninstall:
 	@echo "Uninstalling plugin from current project..."
@@ -90,6 +143,14 @@ help:
 	@echo "  make install-global - Install globally (~/.config/opencode/plugins/)"
 	@echo "  make uninstall     - Uninstall from current project"
 	@echo "  make uninstall-global - Uninstall globally"
+	@echo ""
+	@echo "Publishing (Gitea NPM Registry):"
+	@echo "  make setup-registry    - Configure Gitea npm registry (one-time setup)"
+	@echo "  make publish-dry-run   - Test publish without actually publishing"
+	@echo "  make publish           - Publish to configured npm registry"
+	@echo "  make version-patch     - Bump patch version (1.0.0 -> 1.0.1)"
+	@echo "  make version-minor     - Bump minor version (1.0.0 -> 1.1.0)"
+	@echo "  make version-major     - Bump major version (1.0.0 -> 2.0.0)"
 	@echo ""
 	@echo "Distribution:"
 	@echo "  make pack          - Create npm tarball for distribution"
