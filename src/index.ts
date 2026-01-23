@@ -6,6 +6,7 @@ import * as Correlation from "./correlation.js"
 import { inferLanguage } from "./language-map.js"
 import type { MetricsConfig, TracesConfig } from "./types.js"
 import * as Logger from "./logger.js"
+import { trace } from "@opentelemetry/api"
 
 /**
  * Global config state populated from config hook for use in all metrics
@@ -84,6 +85,20 @@ const plugin: Plugin = async (input) => {
 
     "tool.execute.before": async (input, output) => {
       Logger.debug(`tool.execute.before: tool=${input.tool}, callID=${input.callID}`)
+
+      // Inject session context into active AI SDK span
+      const activeSpan = trace.getActiveSpan()
+      if (activeSpan) {
+        activeSpan.setAttributes({
+          "session.id": input.sessionID,
+          "call.id": input.callID,
+          "tool.name": input.tool,
+          "user": globalConfig.user,
+          "opencode.version": globalConfig.version,
+        })
+        Logger.debug(`Injected session context into span: sessionID=${input.sessionID}, callID=${input.callID}`)
+      }
+
       Correlation.registerToolStart(input.callID, input.tool, input.sessionID)
     },
 
@@ -114,6 +129,18 @@ const plugin: Plugin = async (input) => {
         files = [filediff.file]
         language = inferLanguage(filediff.file)
         Logger.debug(`language inferred: ${language}`)
+
+        // Add file context to active span if available
+        const activeSpan = trace.getActiveSpan()
+        if (activeSpan) {
+          activeSpan.setAttributes({
+            "file.path": filediff.file,
+            "language": language,
+            "loc.added": filediff.additions || 0,
+            "loc.deleted": filediff.deletions || 0,
+          })
+          Logger.debug(`Added file context to span: file=${filediff.file}, language=${language}`)
+        }
       }
 
       Metrics.recordToolExecution({
