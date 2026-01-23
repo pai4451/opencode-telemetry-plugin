@@ -1,9 +1,10 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import * as os from "os"
 import * as Metrics from "./metrics.js"
+import * as Traces from "./traces.js"
 import * as Correlation from "./correlation.js"
 import { inferLanguage } from "./language-map.js"
-import type { MetricsConfig } from "./types.js"
+import type { MetricsConfig, TracesConfig } from "./types.js"
 import * as Logger from "./logger.js"
 
 /**
@@ -69,6 +70,16 @@ const plugin: Plugin = async (input) => {
       Logger.log("Initializing metrics with openTelemetry enabled")
       Logger.log(`Global config: model=${globalConfig.model}, user=${globalConfig.user}, version=${globalConfig.version}`)
       await Metrics.initialize(metricsConfig)
+
+      // Initialize traces for AI SDK span collection
+      const tracesConfig: TracesConfig = {
+        enabled: true,
+        endpoint: "http://localhost:4317",
+        protocol: "grpc",
+      }
+
+      Logger.log("Initializing traces for AI SDK spans")
+      await Traces.initialize(tracesConfig)
     },
 
     "tool.execute.before": async (input, output) => {

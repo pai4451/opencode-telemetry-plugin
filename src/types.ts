@@ -11,6 +11,16 @@ export interface MetricsConfig {
 }
 
 /**
+ * Configuration for OpenTelemetry traces collection
+ */
+export interface TracesConfig {
+  enabled: boolean
+  endpoint: string
+  protocol: "grpc" | "http"
+  headers?: Record<string, string>
+}
+
+/**
  * File diff information with LOC counts
  */
 export interface FileDiff {
