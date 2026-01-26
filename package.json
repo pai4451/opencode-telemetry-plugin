@@ -47,7 +47,8 @@
     "@opentelemetry/resources": "^1.29.0",
     "@opentelemetry/semantic-conventions": "^1.29.0",
     "@opentelemetry/sdk-node": "^0.54.0",
-    "@opentelemetry/exporter-trace-otlp-grpc": "^0.54.0"
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.54.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.54.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -1,5 +1,6 @@
 import { NodeSDK } from "@opentelemetry/sdk-node"
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc"
+import { OTLPTraceExporter as OTLPTraceExporterGrpc } from "@opentelemetry/exporter-trace-otlp-grpc"
+import { OTLPTraceExporter as OTLPTraceExporterHttp } from "@opentelemetry/exporter-trace-otlp-http"
 import { Resource } from "@opentelemetry/resources"
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions"
 import type { TracesConfig } from "./types.js"
@@ -25,11 +26,19 @@ export async function initialize(config: TracesConfig): Promise<void> {
       "opencode.plugin": "telemetry",
     })
 
-    // Create OTLP trace exporter
-    const traceExporter = new OTLPTraceExporter({
-      url: config.endpoint,
-      headers: config.headers ?? {},
-    })
+    // Create OTLP trace exporter based on protocol
+    const traceExporter =
+      config.protocol === "http"
+        ? new OTLPTraceExporterHttp({
+            url: config.endpoint,
+            headers: config.headers ?? {},
+            timeoutMillis: 5000,
+          })
+        : new OTLPTraceExporterGrpc({
+            url: config.endpoint,
+            headers: config.headers ?? {},
+            timeoutMillis: 5000,
+          })
 
     // Initialize NodeSDK
     sdk = new NodeSDK({

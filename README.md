@@ -29,6 +29,9 @@ For enterprise/internal distribution, see **[DISTRIBUTION.md](DISTRIBUTION.md)**
 - 🔄 **DELTA Temporality** - Clean data with no duplicates
 - 📝 **File-based Logging** - Separate log file for debugging
 - 🚀 **Zero Config** - Works out of the box with `experimental.openTelemetry: true`
+- ⚙️ **Configurable Endpoints** - Support for custom OTEL collector endpoints via environment variables
+- 🌐 **HTTP & gRPC Protocols** - HTTP default for k8s ingress, gRPC optional for direct connections
+- 🔗 **Trace Collection** - Distributed tracing for AI tool executions
 
 ## What Metrics Are Collected?
 
@@ -399,37 +402,76 @@ OpenCode → Plugin Hooks → Metrics Collection → OTEL SDK → OTEL Collector
 
 ## Configuration
 
+### Enable the Plugin
+
+Add to `~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+{
+  "experimental": {
+    "openTelemetry": true
+  }
+}
+```
+
 ### Default Settings
 
-The plugin uses sensible defaults:
+The plugin uses sensible defaults for local development:
 
-```typescript
-{
-  enabled: true,
-  endpoint: "http://localhost:4317",
-  protocol: "grpc",
-  exportIntervalMillis: 5000  // 5 seconds
-}
-```
+- **Endpoint:** `http://localhost:4318`
+- **Protocol:** `http` (recommended for k8s)
+- **Export interval:** `5000ms` (5 seconds)
 
-### Customization
+No configuration needed if using defaults!
 
-To customize, modify `src/index.ts`:
+### Custom Configuration (Environment Variables)
 
-```typescript
-const metricsConfig: MetricsConfig = {
-  enabled: true,
-  endpoint: "http://your-otel-collector:4317",  // Custom endpoint
-  protocol: "grpc",  // or "http"
-  exportIntervalMillis: 10000,  // 10 seconds instead of 5
-}
-```
+⚠️ **Important:** OpenCode's strict config schema doesn't support custom plugin config fields. Use **environment variables only** for custom configuration.
 
-Then rebuild:
+**Set environment variables:**
 
 ```bash
-npm run build
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4318"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http"
+
+opencode
 ```
+
+**Or use the provided script:**
+
+```bash
+./run-with-env.sh
+```
+
+### Environment Variables
+
+Standard OpenTelemetry environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base endpoint (metrics + traces) | `http://localhost:4318` |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | Protocol: `http` or `grpc` | `http` |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Override for metrics only | Uses base |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Override for traces only | Uses base |
+
+### Protocol Selection
+
+**HTTP (Recommended - Port 4318):**
+- ✅ Works with Kubernetes ingress
+- ✅ Better firewall compatibility
+- ✅ Simpler network configuration
+
+**gRPC (Optional - Port 4317):**
+- ✅ Direct collector connections
+- ✅ Binary protocol (more efficient)
+
+### Additional Documentation
+
+- **[CONFIG_SCHEMA_INVESTIGATION.md](CONFIG_SCHEMA_INVESTIGATION.md)** - Why config files don't work with OpenCode's strict schema
+- **[HTTP_PATH_FIX.md](HTTP_PATH_FIX.md)** - Important HTTP/gRPC endpoint path differences
+- **[SIMPLIFIED_IMPLEMENTATION.md](SIMPLIFIED_IMPLEMENTATION.md)** - Implementation details and design decisions
+- **[DISTRIBUTION.md](DISTRIBUTION.md)** - Enterprise distribution guide
+- **[CORRELATION_GUIDE.md](CORRELATION_GUIDE.md)** - Distributed tracing and correlation features
 
 ## Troubleshooting
 
