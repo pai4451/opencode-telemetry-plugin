@@ -47,3 +47,4 @@ Thumbs.db
 merge_sort.cpp
 test-*.js
 test-*.ts
+.opencode/
