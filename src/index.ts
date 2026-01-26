@@ -6,6 +6,7 @@ import * as Correlation from "./correlation.js"
 import { inferLanguage } from "./language-map.js"
 import type { MetricsConfig, TracesConfig } from "./types.js"
 import * as Logger from "./logger.js"
+import * as Config from "./config.js"
 import { trace } from "@opentelemetry/api"
 
 /**
@@ -59,27 +60,26 @@ const plugin: Plugin = async (input) => {
         return
       }
 
-      // Use default OTEL configuration
-      // Export interval: 5 seconds - responsive with DELTA mode (no spam!)
-      const metricsConfig: MetricsConfig = {
-        enabled: true,
-        endpoint: "http://localhost:4317",
-        protocol: "grpc",
-        exportIntervalMillis: 5000, // 5 seconds
-      }
+      // Parse configuration from environment variables
+      // Note: Custom config fields in opencode.jsonc don't work due to strict Zod schema
+      // We only support environment variables: OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL
+      const metricsConfig = Config.parseMetricsConfig()
+      const tracesConfig = Config.parseTracesConfig()
 
-      Logger.log("Initializing metrics with openTelemetry enabled")
+      Logger.log("Initializing metrics with config:")
+      Logger.log(`  Endpoint: ${metricsConfig.endpoint}`)
+      Logger.log(`  Protocol: ${metricsConfig.protocol}`)
+      Logger.log(`  Export interval: ${metricsConfig.exportIntervalMillis}ms`)
+      Logger.log(`  Source: ${process.env.OTEL_EXPORTER_OTLP_ENDPOINT ? 'Environment variables' : 'Defaults'}`)
       Logger.log(`Global config: model=${globalConfig.model}, user=${globalConfig.user}, version=${globalConfig.version}`)
+
       await Metrics.initialize(metricsConfig)
 
-      // Initialize traces for AI SDK span collection
-      const tracesConfig: TracesConfig = {
-        enabled: true,
-        endpoint: "http://localhost:4317",
-        protocol: "grpc",
-      }
+      Logger.log("Initializing traces with config:")
+      Logger.log(`  Endpoint: ${tracesConfig.endpoint}`)
+      Logger.log(`  Protocol: ${tracesConfig.protocol}`)
+      Logger.log(`  Source: ${process.env.OTEL_EXPORTER_OTLP_ENDPOINT ? 'Environment variables' : 'Defaults'}`)
 
-      Logger.log("Initializing traces for AI SDK spans")
       await Traces.initialize(tracesConfig)
     },
 
