@@ -173,6 +173,142 @@ Add to your OpenCode config (`~/.config/opencode/opencode.jsonc` or project's `.
 - Export metrics to `http://localhost:4317` (OTEL collector)
 - Log to `~/.local/share/opencode/telemetry-plugin.log`
 
+## Company Distribution (NFS)
+
+### Bundle-Based Distribution
+
+For enterprise deployments where you want to:
+- Distribute to all employees via NFS or shared storage
+- Avoid requiring `npm install` for each user
+- Deploy updates instantly across the company
+
+The plugin can be bundled into a **single self-contained JavaScript file** (~1.6 MB minified).
+
+### For Administrators
+
+**Build and deploy bundled plugin:**
+
+```bash
+# One-time setup
+cd /path/to/opencode-telemetry-plugin
+npm install
+
+# Build minified production bundle
+npm run bundle:prod
+# Or: npm run bundle -- --production
+
+# Output: dist/telemetry-plugin.bundle.min.js (~1.6 MB)
+
+# Deploy to company NFS (customize NFS_PATH in script)
+./deploy-to-nfs.sh
+```
+
+**Or manually:**
+
+```bash
+# Build bundle
+npm run bundle -- --production
+
+# Copy to NFS
+cp dist/telemetry-plugin.bundle.min.js /mnt/company-nfs/opencode-plugins/
+
+# Set readable permissions
+chmod 644 /mnt/company-nfs/opencode-plugins/telemetry-plugin.bundle.min.js
+```
+
+**Test deployment locally without NFS:**
+
+```bash
+# Create test directory
+mkdir -p /tmp/test-nfs-plugin
+
+# Set temporary NFS path
+export NFS_PATH=/tmp/test-nfs-plugin
+
+# Deploy to test location
+./deploy-to-nfs.sh
+```
+
+### For Users
+
+**Quick Setup:**
+
+Add to `~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+{
+  "plugin": [
+    "file:///mnt/company-nfs/opencode-plugins/telemetry-plugin.bundle.min.js"
+  ],
+  "experimental": {
+    "openTelemetry": true
+  }
+}
+```
+
+Restart OpenCode. Done!
+
+**Custom OTEL Collector (Optional):**
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector.company.com:4318"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http"
+opencode
+```
+
+### Bundle Comparison
+
+**Development Bundle (Unminified):**
+- File: `dist/telemetry-plugin.bundle.js`
+- Size: ~4.2 MB
+- Source maps: Yes
+- Use for: Local development and debugging
+
+**Production Bundle (Minified):**
+- File: `dist/telemetry-plugin.bundle.min.js`
+- Size: ~1.6 MB (62% smaller)
+- Source maps: No
+- Use for: NFS distribution
+
+### Advantages of Bundled Distribution
+
+**For Administrators:**
+- Single file deployment (no node_modules)
+- Easy version control and rollback
+- No private npm registry needed
+- Fast updates across all users
+- Network efficient (1.6 MB vs ~200 MB)
+
+**For Users:**
+- Zero setup - no npm install required
+- One-line configuration
+- Faster plugin loading
+- Works offline (no registry access needed)
+
+**For Company:**
+- Minimal bandwidth usage
+- Enhanced security (no external registry)
+- All code self-contained
+- Scales to unlimited users
+
+### Updating the Plugin
+
+**Administrators:**
+
+```bash
+# Pull latest changes
+cd /path/to/opencode-telemetry-plugin
+git pull
+
+# Rebuild and redeploy
+npm run bundle -- --production
+./deploy-to-nfs.sh
+```
+
+**Users:**
+
+No action needed! Plugin updates automatically on next OpenCode restart.
+
 ## OTEL Collector Setup
 
 ### Docker Compose (Recommended)
@@ -474,6 +610,84 @@ Standard OpenTelemetry environment variables:
 - **[CORRELATION_GUIDE.md](CORRELATION_GUIDE.md)** - Distributed tracing and correlation features
 
 ## Troubleshooting
+
+### OTEL Collector Setup
+
+**⚠️ IMPORTANT: Use Contrib Image**
+
+The standard OTEL collector image does NOT include the file exporter. You must use the **contrib** image:
+
+```yaml
+# docker-compose.yml
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest  # ← Must use contrib!
+    container_name: opencode-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./otel-data:/otel-data
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+    restart: unless-stopped
+```
+
+**Symptoms of using wrong image:**
+- metrics.jsonl and traces.jsonl are empty (0 bytes)
+- Collector receives data but doesn't write to files
+
+**Fix:**
+```bash
+# Update docker-compose.yml to use contrib image
+# Then restart
+docker-compose down
+docker-compose up -d
+```
+
+### Duplicate Plugin Loading
+
+**⚠️ CRITICAL: Avoid Duplicate Loading**
+
+If you see duplicate log entries or data is doubled, the plugin is loading twice.
+
+**Common Cause:**
+Having `experimental.openTelemetry: true` in BOTH global and project configs.
+
+**Solution:**
+Configure plugin in **global config only**:
+
+```jsonc
+// ✅ CORRECT: Global config only
+// ~/.config/opencode/opencode.jsonc
+{
+  "plugin": ["file://.../telemetry-plugin.bundle.js"],
+  "experimental": { "openTelemetry": true }
+}
+
+// ✅ CORRECT: Project config - NO plugin, NO openTelemetry
+// ./.opencode/opencode.jsonc
+{
+  "permission": { "edit": "ask" }
+  // Do NOT add plugin or experimental.openTelemetry here!
+}
+```
+
+**Verify single loading:**
+```bash
+# Should show only ONE line
+grep "Plugin loaded" ~/.local/share/opencode/telemetry-plugin.log
+```
+
+**Check for duplicates:**
+```bash
+# Run consistency analysis
+cd /path/to/opencode-telemetry-plugin
+python3 analyze-consistency.py
+
+# Should show: "✅ All telemetry data is CONSISTENT!"
+# If it shows duplicate warnings, check your configs
+```
 
 ### Plugin Not Loading?
 
