@@ -39,7 +39,7 @@ export function initLogger(): void {
 
     log("Logger initialized")
   } catch (error) {
-    console.error("[opencode-telemetry] Failed to initialize logger:", error)
+    // Silent fail - don't print to console to avoid polluting OpenCode output
   }
 }
 
@@ -68,8 +68,7 @@ export function log(message: string, data?: any): void {
       fs.appendFileSync(LOG_FILE, logMessage)
     }
   } catch (error) {
-    // Silent fail to not disrupt OpenCode
-    console.error("[opencode-telemetry] Failed to write log:", error)
+    // Silent fail to not disrupt OpenCode - don't print to console
   }
 }
 
