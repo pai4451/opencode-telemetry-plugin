@@ -32,7 +32,7 @@ const globalConfig = {
 const plugin: Plugin = async (input) => {
   Logger.initLogger()
   Logger.log("Plugin loaded for project", input.directory)
-  console.log(`[opencode-telemetry] Plugin loaded. Logs: ${Logger.getLogFilePath()}`)
+  Logger.log(`Logs are written to: ${Logger.getLogFilePath()}`)
 
   return {
     config: async (config) => {
