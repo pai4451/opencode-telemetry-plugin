@@ -1,5 +1,6 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import * as os from "os"
+import * as fs from "fs/promises"
 import * as Metrics from "./metrics.js"
 import * as Traces from "./traces.js"
 import * as Correlation from "./correlation.js"
@@ -8,6 +9,21 @@ import type { MetricsConfig, TracesConfig } from "./types.js"
 import * as Logger from "./logger.js"
 import * as Config from "./config.js"
 import { trace } from "@opentelemetry/api"
+
+/**
+ * Read a file and count its lines for LOC metrics
+ * Used for write tool which doesn't provide filediff in its output
+ */
+async function countFileLines(filepath: string): Promise<{ lines: number; content: string } | null> {
+  try {
+    const content = await fs.readFile(filepath, 'utf-8')
+    const lines = content.split('\n').length
+    return { lines, content }
+  } catch (error) {
+    Logger.error(`Failed to read file for LOC counting: ${filepath}`, error)
+    return null
+  }
+}
 
 /**
  * Global config state populated from config hook for use in all metrics
@@ -113,10 +129,26 @@ const plugin: Plugin = async (input) => {
 
       const duration = Date.now() - ctx.startTime
       const metadata = output.metadata || {}
-      const filediff = metadata.filediff
+      let filediff = metadata.filediff
 
       Logger.debug(`metadata keys: ${Object.keys(metadata).join(", ")}`)
       Logger.debug(`filediff present: ${!!filediff}`)
+
+      // Handle write tool - calculate LOC from file since it doesn't provide filediff
+      if (input.tool === "write" && !filediff && metadata.filepath) {
+        Logger.debug(`Write tool detected without filediff, calculating LOC from file: ${metadata.filepath}`)
+
+        const fileInfo = await countFileLines(metadata.filepath)
+        if (fileInfo) {
+          // Create synthetic filediff for write tool
+          filediff = {
+            file: metadata.filepath,
+            additions: fileInfo.lines,
+            deletions: 0,  // Write tool creates/overwrites, so no deletions tracked
+          }
+          Logger.log(`Write tool LOC calculated: file=${metadata.filepath}, lines=${fileInfo.lines}, isNewFile=${!metadata.exists}`)
+        }
+      }
 
       if (filediff) {
         Logger.log(`filediff: file=${filediff.file}, additions=${filediff.additions}, deletions=${filediff.deletions}`)
